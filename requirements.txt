@@ -1,0 +1,5 @@
+fast-flights==3.1.0
+typing-extensions
+airportsdata
+requests
+playwright==1.65.2

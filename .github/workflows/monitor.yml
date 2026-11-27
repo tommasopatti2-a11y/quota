@@ -1,0 +1,50 @@
+name: Monitoraggio voli
+
+on:
+  schedule:
+    # Due rilevazioni al giorno (orari UTC): 06:00 e 17:00 → 07:00 e 18:00 in Italia (ora solare).
+    # GitHub può ritardare le esecuzioni pianificate anche di diversi minuti.
+    - cron: '0 6 * * *'
+    - cron: '0 17 * * *'
+  workflow_dispatch: # Esecuzione manuale con un clic
+
+concurrency:
+  group: monitoraggio-voli
+  cancel-in-progress: false
+
+jobs:
+  run-monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+
+    steps:
+      - name: Scarica il repository
+        uses: actions/checkout@v4
+
+      - name: Configura Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      # Lo scraper apre Google Voli con un browser vero (vedi google_voli.py).
+      - name: Recupera Chromium dalla cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Installa Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Esegui ricerca voli
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        # Nessun allegato di diagnostica: il repository è pubblico e le pagine di
+        # Google conterrebbero tratte e date dei viaggi. Per il debug in locale
+        # si può usare QUOTA_DEBUG_DIR (vedi google_voli.py).
+        run: python flight_monitor.py
