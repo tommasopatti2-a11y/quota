@@ -2,5 +2,5 @@
   <rect width="512" height="512" rx="112" fill="#14161b"/>
   <circle cx="246" cy="246" r="132" fill="none" stroke="#b9d6b2" stroke-width="44"/>
   <path d="M300 300 L392 392" stroke="#b9d6b2" stroke-width="48" stroke-linecap="round"/>
-  <polyline points="170,278 218,232 258,258 322,196" fill="none" stroke="#c9bff0" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(238 236) rotate(45) scale(0.88)"><path d="M0,-64 C7,-64 9,-56 9,-48 L9,-14 L62,16 L62,30 L9,16 L9,40 L26,52 L26,62 L0,56 L-26,62 L-26,52 L-9,40 L-9,16 L-62,30 L-62,16 L-9,-14 L-9,-48 C-9,-56 -7,-64 0,-64 Z" fill="#c9bff0"/></g>
 </svg>

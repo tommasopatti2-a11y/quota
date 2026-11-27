@@ -10,7 +10,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon-v2.png'],
       manifest: {
         name: 'Quota',
         short_name: 'Quota',
@@ -23,9 +23,9 @@ export default defineConfig({
         background_color: '#14161b',
         theme_color: '#14161b',
         icons: [
-          { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'pwa-192-v2.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512-v2.png', sizes: '512x512', type: 'image/png' },
+          { src: 'pwa-maskable-512-v2.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {

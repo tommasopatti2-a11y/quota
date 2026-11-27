@@ -15,11 +15,11 @@ const svg = readFileSync(new URL('../public/favicon.svg', import.meta.url), 'utf
 const out = (name) => new URL(`../public/${name}`, import.meta.url).pathname
 const BG = '#14161b'
 const targets = [
-  { name: 'pwa-192.png', size: 192, scale: 1, square: false },
-  { name: 'pwa-512.png', size: 512, scale: 1, square: false },
-  { name: 'apple-touch-icon.png', size: 180, scale: 1, square: true },
+  { name: 'pwa-192-v2.png', size: 192, scale: 1, square: false },
+  { name: 'pwa-512-v2.png', size: 512, scale: 1, square: false },
+  { name: 'apple-touch-icon-v2.png', size: 180, scale: 1, square: true },
   // Maskable: sfondo pieno e simbolo dentro la "safe zone".
-  { name: 'pwa-maskable-512.png', size: 512, scale: 0.78, square: true },
+  { name: 'pwa-maskable-512-v2.png', size: 512, scale: 0.78, square: true },
 ]
 
 const browser = await playwright.chromium.launch()
