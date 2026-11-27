@@ -519,3 +519,9 @@ a { color: var(--sky); }
 .outcome--empty .outcome__status { color: var(--butter); }
 .outcome--error .outcome__status { color: var(--rose); }
 .outcome--error .small { word-break: break-word; }
+
+/* Gruppi di viaggi */
+.group-head { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.group-head__chev { color: var(--text-faint); transition: transform .15s; flex: none; }
+.group-head__chev.is-open { transform: rotate(90deg); }
+.group-head__title { font-size: 0.95rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -73,11 +73,20 @@ export function DashboardIndex() {
 function TripPicker({ trips, current }: { trips: Trip[]; current: Trip }) {
   const navigate = useNavigate()
   const today = todayISO()
-  const groups: [string, Trip[]][] = [
-    ['Attivi', trips.filter((t) => t.active && t.outbound_date >= today)],
-    ['In pausa', trips.filter((t) => !t.active && t.outbound_date >= today)],
-    ['Conclusi', trips.filter((t) => t.outbound_date < today)],
-  ]
+  const inCorso = trips.filter((t) => t.outbound_date >= today)
+  const concluded: [string, Trip[]] = ['Conclusi', trips.filter((t) => t.outbound_date < today)]
+  // Con i gruppi: un blocco per gruppo (i viaggi in pausa sono indicati nel nome).
+  const groups: [string, Trip[]][] = inCorso.some((t) => t.group_name)
+    ? [
+        ...[...new Set(inCorso.map((t) => t.group_name ?? ''))]
+          .sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b, 'it')))
+          .map((g): [string, Trip[]] => [
+            g || 'Senza gruppo',
+            inCorso.filter((t) => (t.group_name ?? '') === g).sort((a, b) => Number(b.active) - Number(a.active)),
+          ]),
+        concluded,
+      ]
+    : [['Attivi', inCorso.filter((t) => t.active)], ['In pausa', inCorso.filter((t) => !t.active)], concluded]
   return (
     <label className="trip-picker">
       <span className="sr-only">Viaggio</span>
@@ -88,6 +97,7 @@ function TripPicker({ trips, current }: { trips: Trip[]; current: Trip }) {
               {xs.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
+                  {!t.active && t.outbound_date >= today ? ' (in pausa)' : ''}
                 </option>
               ))}
             </optgroup>
