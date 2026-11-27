@@ -15,13 +15,14 @@ export interface Trip {
   window_days: number
   passengers: number
   priority: Priority
+  group_name: string | null
   created_at: string
   updated_at: string
 }
 
 export type TripInput = Pick<
   Trip,
-  'name' | 'active' | 'origin' | 'destination' | 'outbound_date' | 'return_date' | 'window_days' | 'passengers' | 'priority'
+  'name' | 'active' | 'origin' | 'destination' | 'outbound_date' | 'return_date' | 'window_days' | 'passengers' | 'priority' | 'group_name'
 >
 
 export interface Search {

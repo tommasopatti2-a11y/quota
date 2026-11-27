@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Stepper } from '../../components/Stepper'
 import { Switch } from '../../components/Switch'
@@ -12,7 +12,9 @@ import { Segmented } from '../dashboard/ui'
 import type { Priority } from '../../lib/types'
 import { tripErrorMessage, useDeleteTrip, useSaveTrip, useTrips } from './api'
 import {
+  copyForm,
   emptyForm,
+  existingGroups,
   formFromTrip,
   MAX_PASSENGERS,
   MAX_WINDOW,
@@ -45,6 +47,7 @@ const PRIORITY_HINT: Record<Priority, string> = {
 
 export function TripFormScreen() {
   const { id } = useParams()
+  const [search] = useSearchParams()
   const { data: trips, isPending, isError, refetch } = useTrips()
 
   if (isPending) return <Spinner />
@@ -53,11 +56,14 @@ export function TripFormScreen() {
   const trip = id ? trips.find((t) => t.id === id) : undefined
   if (id && !trip) return <ErrorState message="Questo viaggio non esiste più." />
 
+  // Duplicazione: /viaggi/nuovo?da=<id> parte dai dati di un viaggio esistente.
+  const source = !id && search.get('da') ? trips.find((t) => t.id === search.get('da')) : undefined
+
   // key: il form si reinizializza se si passa da un viaggio all'altro.
-  return <TripForm key={trip?.id ?? 'new'} trip={trip} trips={trips} />
+  return <TripForm key={trip?.id ?? `new-${source?.id ?? ''}`} trip={trip} source={source} trips={trips} />
 }
 
-function TripForm({ trip, trips }: { trip?: Trip; trips: Trip[] }) {
+function TripForm({ trip, source, trips }: { trip?: Trip; source?: Trip; trips: Trip[] }) {
   const navigate = useNavigate()
   const toast = useToast()
   const save = useSaveTrip()
@@ -65,7 +71,10 @@ function TripForm({ trip, trips }: { trip?: Trip; trips: Trip[] }) {
   const today = todayISO()
   const editing = Boolean(trip)
 
-  const [values, setValues] = useState<TripFormValues>(() => (trip ? formFromTrip(trip) : emptyForm()))
+  const [values, setValues] = useState<TripFormValues>(() =>
+    trip ? formFromTrip(trip) : source ? copyForm(source, trips, today) : emptyForm(),
+  )
+  const groups = useMemo(() => existingGroups(trips), [trips])
   const [submitted, setSubmitted] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -118,7 +127,10 @@ function TripForm({ trip, trips }: { trip?: Trip; trips: Trip[] }) {
             <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1>{editing ? 'Modifica viaggio' : 'Nuovo viaggio'}</h1>
+        <div>
+          <h1>{editing ? 'Modifica viaggio' : source ? 'Copia del viaggio' : 'Nuovo viaggio'}</h1>
+          {source && <p className="muted small">Da «{source.name}»: modifica ciò che serve e salva.</p>}
+        </div>
       </header>
 
       <section className="card stack">
@@ -135,6 +147,29 @@ function TripForm({ trip, trips }: { trip?: Trip; trips: Trip[] }) {
             <span className="field__error">{shown.name}</span>
           ) : (
             changed('name') && <span className="field__hint">Lo storico delle rilevazioni resta collegato al viaggio.</span>
+          )}
+        </label>
+
+        <label className="field">
+          <span className="field__label">Gruppo (facoltativo)</span>
+          <input
+            value={values.group}
+            onChange={(e) => set('group', e.target.value)}
+            placeholder="Es. Estate 2027"
+            maxLength={40}
+            list="trip-groups"
+            autoComplete="off"
+            aria-invalid={Boolean(shown.group)}
+          />
+          <datalist id="trip-groups">
+            {groups.map((g) => (
+              <option key={g} value={g} />
+            ))}
+          </datalist>
+          {shown.group ? (
+            <span className="field__error">{shown.group}</span>
+          ) : (
+            groups.length > 0 && <span className="field__hint">Scegli un gruppo esistente o scrivine uno nuovo.</span>
           )}
         </label>
 
@@ -245,7 +280,10 @@ function TripForm({ trip, trips }: { trip?: Trip; trips: Trip[] }) {
       )}
 
       {editing && (
-        <section className="danger-zone">
+        <section className="danger-zone stack">
+          <button type="button" className="btn btn--ghost btn--block" onClick={() => navigate(`/viaggi/nuovo?da=${trip!.id}`)}>
+            Duplica viaggio
+          </button>
           {trip!.active ? (
             <p className="muted small">Per eliminare il viaggio, prima disattivalo.</p>
           ) : (
