@@ -525,3 +525,9 @@ a { color: var(--sky); }
 .group-head__chev { color: var(--text-faint); transition: transform .15s; flex: none; }
 .group-head__chev.is-open { transform: rotate(90deg); }
 .group-head__title { font-size: 0.95rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Città con più aeroporti nel menu */
+.airport__code--city { color: var(--sage); }
+.airport__child button { padding-left: 26px; }
+.airport__child .airport__code { color: var(--text-muted); }
+.flight__route { color: var(--text); font-weight: 600; letter-spacing: 0.02em; }

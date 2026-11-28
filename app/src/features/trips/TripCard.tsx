@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Switch } from '../../components/Switch'
-import type { Airport } from '../../lib/airports'
+import { isCity, type Airport } from '../../lib/airports'
 import { formatDay, parseDay } from '../../lib/format'
 import type { Trip } from '../../lib/types'
 
@@ -55,7 +55,7 @@ export function TripCard({ trip, airports, concluded, busy, onToggle }: Props) {
       </div>
       {(from || to) && (
         <div className="faint small trip-card__cities">
-          {from?.city ?? trip.origin} – {to?.city ?? trip.destination}
+          {from ? `${from.city}${isCity(from) ? ' (tutti)' : ''}` : trip.origin} – {to ? `${to.city}${isCity(to) ? ' (tutti)' : ''}` : trip.destination}
         </div>
       )}
       <div className="trip-card__meta small">

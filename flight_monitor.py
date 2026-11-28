@@ -40,6 +40,7 @@ PAUSA_SECONDI = 5.0
 MAX_TENTATIVI = 3
 ATTESE_RIPROVA = (15, 45)  # secondi prima del 2° e del 3° tentativo
 MAX_RISULTATI_PER_DATA = 10
+MAX_RISULTATI_CITTA = 15  # viaggi tra città: più combinazioni di aeroporti
 # Pesi delle priorità (€/ora, € per scalo, a persona): devono coincidere con
 # public.priority_weights in supabase/migrations/0004_priority.sql.
 PESI_PRIORITA = {"equilibrio": (20, 30), "comodita": (50, 75), "risparmio": (5, 10)}
@@ -48,6 +49,8 @@ FUSO_ORARIO = ZoneInfo("Europe/Rome")
 HTTP_TIMEOUT = 30
 
 AEROPORTI = airportsdata.load("IATA")
+# Codici metropolitani (es. ROM, LON): una ricerca copre tutti gli aeroporti della città.
+CITTA = {k for k, v in airportsdata.load_iata_macs().items() if k not in v["airports"]}
 
 
 # ---------------------------------------------------------------------------
@@ -186,6 +189,8 @@ class Volo:
     volo_min: int | None
     scali: int | None
     via: list[str]
+    da: str | None = None  # aeroporto effettivo di partenza
+    a: str | None = None  # aeroporto effettivo di arrivo
 
 
 def estrai_volo(volo) -> Volo | None:
@@ -198,7 +203,7 @@ def estrai_volo(volo) -> Volo | None:
 
     segmenti = list(getattr(volo, "flights", None) or [])
     if not segmenti:
-        return Volo(prezzo, compagnie, None, None, 0, None, None, None, [])
+        return Volo(prezzo, compagnie, None, None, 0, None, None, None, [], None, None)
 
     primo, ultimo = segmenti[0], segmenti[-1]
     dep_local = _local_dt(primo.departure)
@@ -226,6 +231,8 @@ def estrai_volo(volo) -> Volo | None:
         volo_min=volo_min,
         scali=len(segmenti) - 1,
         via=[s.to_airport.code for s in segmenti[:-1]],
+        da=primo.from_airport.code or None,
+        a=ultimo.to_airport.code or None,
     )
 
 
@@ -244,19 +251,20 @@ def punteggio(v: Volo, passeggeri: int, ora_eur: float, scalo_eur: float) -> flo
     return v.prezzo / passeggeri + ora_eur * durata / 60 + scalo_eur * v.scali
 
 
-def seleziona_alternative(voli: list[Volo], passeggeri: int) -> list[Volo]:
+def seleziona_alternative(voli: list[Volo], passeggeri: int, limite: int = MAX_RISULTATI_PER_DATA) -> list[Volo]:
     """Sceglie i voli da salvare per una data, senza doppioni, ordinati per prezzo.
 
     Se i voli sono al massimo MAX_RISULTATI_PER_DATA si tengono tutti; altrimenti, in
     ordine di precedenza (se si supera il limite restano i primi):
     3 più economici, diretto più economico, 1 scalo più economico, 2 più veloci,
-    i 3 migliori compromessi per ciascuna priorità, poi i più economici rimasti.
+    i 3 migliori compromessi per ciascuna priorità, il più economico di ogni coppia di
+    aeroporti, poi i più economici rimasti.
     """
     unici: dict[tuple, Volo] = {}
     for v in voli:  # Google a volte ripete lo stesso volo
-        unici.setdefault((v.prezzo, v.partenza, v.arrivo, tuple(v.compagnie), v.scali), v)
+        unici.setdefault((v.prezzo, v.partenza, v.arrivo, tuple(v.compagnie), v.scali, v.da, v.a), v)
     voli = list(unici.values())
-    if len(voli) <= MAX_RISULTATI_PER_DATA:  # pochi voli: si tengono tutti
+    if len(voli) <= limite:  # pochi voli: si tengono tutti
         return sorted(voli, key=lambda v: (v.prezzo, _durata(v) or 0))
     per_prezzo = sorted(voli, key=lambda v: v.prezzo)
     candidati: list[Volo] = per_prezzo[:3]
@@ -266,17 +274,22 @@ def seleziona_alternative(voli: list[Volo], passeggeri: int) -> list[Volo]:
     for ora_eur, scalo_eur in PESI_PRIORITA.values():
         con_punteggio = [(punteggio(v, passeggeri, ora_eur, scalo_eur), v) for v in voli]
         candidati += [v for p, v in sorted((x for x in con_punteggio if x[0] is not None), key=lambda x: (x[0], x[1].prezzo))[:3]]
+    # Il più economico di ogni coppia di aeroporti (viaggi tra città).
+    coppie: dict[tuple, Volo] = {}
+    for v in per_prezzo:
+        coppie.setdefault((v.da, v.a), v)
+    candidati += list(coppie.values())
     # Posti rimasti liberi: i successivi più economici.
     candidati += per_prezzo
 
     scelti, visti = [], set()
     for v in candidati:
-        chiave = (v.prezzo, v.partenza, v.arrivo, tuple(v.compagnie), v.scali)
+        chiave = (v.prezzo, v.partenza, v.arrivo, tuple(v.compagnie), v.scali, v.da, v.a)
         if chiave in visti:
             continue
         visti.add(chiave)
         scelti.append(v)
-        if len(scelti) == MAX_RISULTATI_PER_DATA:
+        if len(scelti) == limite:
             break
     return sorted(scelti, key=lambda v: (v.prezzo, _durata(v) or 0))
 
@@ -302,7 +315,8 @@ def cerca_data(gv: GoogleVoli, origine: str, destinazione: str, data_volo: date,
     for tentativo in range(1, MAX_TENTATIVI + 1):
         try:
             trovati = [v for v in (estrai_volo(x) for x in gv.cerca(link, accetta_parziale=tentativo == MAX_TENTATIVI)) if v is not None]
-            voli = seleziona_alternative(trovati, passeggeri)
+            limite = MAX_RISULTATI_CITTA if origine in CITTA or destinazione in CITTA else MAX_RISULTATI_PER_DATA
+            voli = seleziona_alternative(trovati, passeggeri, limite)
             return ("ok" if voli else "empty"), voli, len(trovati), None, link
         except Exception as e:  # noqa: BLE001
             ultimo_errore = f"{type(e).__name__}: {e}"[:500]
@@ -380,6 +394,8 @@ def monitora_viaggio(db, gv: GoogleVoli, viaggio: dict, run_at: str, oggi: date)
                 "flight_min": v.volo_min,
                 "stops": v.scali,
                 "via": v.via,
+                "origin_airport": v.da,
+                "destination_airport": v.a,
             })
     db.insert("results", results)
     print(f"Salvate {len(searches)} ricerche e {len(results)} voli per {etichetta(viaggio)} {conteggio}.")
@@ -439,7 +455,7 @@ def prova(origine: str, destinazione: str, data_str: str, passeggeri: int = 1) -
     if errore:
         print("Errore:", errore)
     for v in voli:
-        print(f"  {v.prezzo:>8.0f} €  {v.partenza}-{v.arrivo}  {v.scali} scali {','.join(v.via):<9} "
+        print(f"  {v.prezzo:>8.0f} €  {v.da}→{v.a} {v.partenza}-{v.arrivo}  {v.scali} scali {','.join(v.via):<9} "
               f"{(v.durata_min or 0) // 60}h{(v.durata_min or 0) % 60:02d}  {', '.join(v.compagnie)}")
     return 0 if status != "error" else 1
 

@@ -1,7 +1,7 @@
 import { forwardRef, useMemo, useState } from 'react'
 import { formatDayWeek, formatDuration, formatDurationDelta, formatPrice } from '../../lib/format'
 import type { Direction } from '../../lib/types'
-import { type Dashboard, durationOf, type LatestFlight } from './model'
+import { type Dashboard, durationOf, type LatestFlight, routeOf } from './model'
 import { Chips, Section, Segmented } from './ui'
 
 type Sort = 'score' | 'price' | 'duration'
@@ -26,6 +26,7 @@ export const FlightsSection = forwardRef<HTMLDivElement, Props>(function Flights
   const [maxStops, setMaxStops] = useState<MaxStops>('any')
   const [sort, setSort] = useState<Sort>('score')
   const [showAll, setShowAll] = useState(false)
+  const [route, setRoute] = useState('all')
   const { dir, date } = filter
 
   // Riferimenti per data: consigliato, più economico, più veloce.
@@ -42,6 +43,10 @@ export const FlightsSection = forwardRef<HTMLDivElement, Props>(function Flights
     return m
   }, [d])
 
+  const routes = useMemo(
+    () => [...new Set(d.latest.filter((f) => f.direction === dir).map(routeOf).filter((r): r is string => Boolean(r)))].sort(),
+    [d, dir],
+  )
   const dates = useMemo(() => [...new Set(d.latest.filter((f) => f.direction === dir).map((f) => f.flight_date))].sort(), [d, dir])
   const flights = useMemo(() => {
     const dur = (f: LatestFlight) => durationOf(f) ?? Infinity
@@ -49,11 +54,12 @@ export const FlightsSection = forwardRef<HTMLDivElement, Props>(function Flights
     return d.latest
       .filter((f) => f.direction === dir)
       .filter((f) => date === 'all' || f.flight_date === date)
+      .filter((f) => route === 'all' || routeOf(f) === route)
       .filter((f) => maxStops === 'any' || (f.stops != null && f.stops <= Number(maxStops)))
       .sort((a, b) =>
         sort === 'score' ? sc(a) - sc(b) || a.pp - b.pp : sort === 'price' ? a.pp - b.pp || dur(a) - dur(b) : dur(a) - dur(b) || a.pp - b.pp,
       )
-  }, [d, dir, date, maxStops, sort])
+  }, [d, dir, date, maxStops, sort, route])
 
   return (
     <div ref={ref} className="scroll-anchor">
@@ -64,7 +70,10 @@ export const FlightsSection = forwardRef<HTMLDivElement, Props>(function Flights
         <Segmented
           label="Direzione"
           value={dir}
-          onChange={(v) => onFilter({ dir: v, date: 'all' })}
+          onChange={(v) => {
+            setRoute('all')
+            onFilter({ dir: v, date: 'all' })
+          }}
           options={[
             { value: 'outbound', label: 'Andata' },
             { value: 'return', label: 'Ritorno' },
@@ -76,6 +85,14 @@ export const FlightsSection = forwardRef<HTMLDivElement, Props>(function Flights
           onChange={(v) => onFilter({ dir, date: v })}
           options={[{ value: 'all', label: 'Tutte le date' }, ...dates.map((x) => ({ value: x, label: formatDayWeek(x) }))]}
         />
+        {routes.length > 1 && (
+          <Chips
+            label="Aeroporti"
+            value={route}
+            onChange={setRoute}
+            options={[{ value: 'all', label: 'Tutti gli aeroporti' }, ...routes.map((r) => ({ value: r, label: r }))]}
+          />
+        )}
         <div className="row-between flights-filters">
           <Chips
             label="Scali massimi"
@@ -129,6 +146,12 @@ export const FlightsSection = forwardRef<HTMLDivElement, Props>(function Flights
                     </span>
                   </div>
                   <div className="flight__meta small">
+                    {routeOf(f) && (
+                      <>
+                        <span className="flight__route">{routeOf(f)}</span>
+                        <span className="dot">·</span>
+                      </>
+                    )}
                     <span>{formatDuration(durationOf(f))}</span>
                     <span className="dot">·</span>
                     <span>
