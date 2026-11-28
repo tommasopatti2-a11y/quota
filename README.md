@@ -17,6 +17,10 @@ La configurazione passo passo (Supabase, secret di GitHub, Cloudflare Pages, ins
   così una data mancante per errore dello scraper non viene confusa con "nessun volo".
 - `results` — per ogni ricerca riuscita le alternative utili (fino a 10): i 3 più economici, il diretto e l'1 scalo più economici, i 2 più veloci e i migliori compromessi per ogni priorità. `price` è il **totale per tutti i passeggeri** del viaggio.
 
+### Viaggi tra città
+
+Partenza e destinazione possono essere un aeroporto (es. `FCO`) o una città con più aeroporti, indicata con il codice metropolitano IATA (es. `ROM` = Fiumicino + Ciampino, `LON` = i 5 aeroporti di Londra). Google Voli accetta direttamente le città: **una sola ricerca** per data copre tutte le combinazioni. Per ogni volo si salvano gli aeroporti effettivi (`results.origin_airport`, `destination_airport`); la dashboard li mostra, permette di filtrarli e confronta i prezzi per coppia di aeroporti. Le città sono generate da `scripts/build_airports.py` (escluse quelle il cui codice coincide con un aeroporto, es. `IST`).
+
 ### Scelta del volo consigliato
 
 Ogni viaggio ha una **priorità** (`risparmio`, `equilibrio`, `comodita`) che pesa prezzo, tempo e scali:

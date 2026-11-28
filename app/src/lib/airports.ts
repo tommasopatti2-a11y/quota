@@ -6,19 +6,33 @@ export interface Airport {
   name: string
   city: string
   country: string // ISO2
+  /** Presente solo per le città: codici degli aeroporti inclusi (es. ROM → CIA, FCO). */
+  airports?: string[]
 }
 
 type Row = [string, string, string, string]
+type CityRow = [string, string, string, string[]]
 
 let cache: Promise<Map<string, Airport>> | null = null
 
+/** Aeroporti e città (codici metropolitani) indicizzati per codice. */
 export function loadAirports(): Promise<Map<string, Airport>> {
   cache ??= import('../data/airports.json').then((m) => {
-    const rows = m.default as unknown as Row[]
-    return new Map(rows.map(([code, name, city, country]) => [code, { code, name, city, country }]))
+    const data = m.default as unknown as { airports: Row[]; cities: CityRow[] }
+    const map = new Map<string, Airport>(data.airports.map(([code, name, city, country]) => [code, { code, name, city, country }]))
+    for (const [code, city, country, airports] of data.cities) {
+      map.set(code, { code, name: 'Tutti gli aeroporti', city, country, airports })
+    }
+    return map
   })
   return cache
 }
+
+export const isCity = (a: Airport | undefined | null) => Boolean(a?.airports?.length)
+
+/** Etichetta breve di un codice: "Roma (tutti)", "FCO". */
+export const placeLabel = (code: string, map: Map<string, Airport> | null) =>
+  map && isCity(map.get(code)) ? `${map.get(code)!.city} (tutti)` : code
 
 const regionNames = new Intl.DisplayNames(['it'], { type: 'region' })
 export const countryName = (iso2: string) => {
@@ -82,10 +96,25 @@ export function searchAirports(all: Map<string, Airport>, query: string, limit =
     else if (code.startsWith(q)) s = 30
     if (!s) continue
     if (HUBS.has(a.code)) s += 30
+    if (isCity(a)) s += 40 // la città intera prima dei suoi aeroporti
     scored.push({ a, s })
   }
-  return scored
-    .sort((x, y) => y.s - x.s || x.a.city.localeCompare(y.a.city))
-    .slice(0, limit)
-    .map((x) => x.a)
+  const ranked = scored.sort((x, y) => y.s - x.s || x.a.city.localeCompare(y.a.city)).map((x) => x.a)
+
+  // Ogni città è seguita subito dai suoi aeroporti.
+  const out: Airport[] = []
+  const seen = new Set<string>()
+  const push = (a: Airport | undefined) => {
+    if (a && !seen.has(a.code)) {
+      seen.add(a.code)
+      out.push(a)
+    }
+  }
+  for (const a of ranked) {
+    if (seen.has(a.code)) continue
+    push(a)
+    if (isCity(a)) a.airports!.forEach((c) => push(all.get(c)))
+    if (out.length >= limit) break
+  }
+  return out.slice(0, Math.max(limit, out.length))
 }

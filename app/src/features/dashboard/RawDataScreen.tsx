@@ -108,11 +108,13 @@ export function RawDataScreen() {
         all.push(...(data as FlightResult[]))
         if (data.length < 1000) break
       }
-      const head = ['Data rilevazione', 'Direzione', 'Data volo', 'Giorni mancanti', 'Posizione', 'Prezzo', 'Passeggeri', 'Prezzo a persona', 'Compagnie', 'Partenza', 'Arrivo', 'Giorni arrivo', 'Durata (min)', 'Volo (min)', 'Scali', 'Via']
+      const head = ['Data rilevazione', 'Direzione', 'Da', 'A', 'Data volo', 'Giorni mancanti', 'Posizione', 'Prezzo', 'Passeggeri', 'Prezzo a persona', 'Compagnie', 'Partenza', 'Arrivo', 'Giorni arrivo', 'Durata (min)', 'Volo (min)', 'Scali', 'Via']
       const lines = all.map((r) =>
         [
           new Date(r.run_at).toLocaleString('it-IT'),
           r.direction === 'outbound' ? 'Andata' : 'Ritorno',
+          r.origin_airport,
+          r.destination_airport,
           r.flight_date,
           r.days_left,
           r.rank,
@@ -206,7 +208,8 @@ export function RawDataScreen() {
                 <strong>{formatPrice(Number(r.price))}</strong>
               </div>
               <div className="faint small">
-                #{r.rank} · {r.airlines.join(', ') || 'n.d.'} · {r.departure_time?.slice(0, 5) ?? '—'}–{r.arrival_time?.slice(0, 5) ?? '—'} ·{' '}
+                #{r.rank}
+                {r.origin_airport && r.destination_airport ? ` · ${r.origin_airport} → ${r.destination_airport}` : ''} · {r.airlines.join(', ') || 'n.d.'} · {r.departure_time?.slice(0, 5) ?? '—'}–{r.arrival_time?.slice(0, 5) ?? '—'} ·{' '}
                 {formatDuration(r.duration_min ?? r.flight_min)} · {r.stops == null ? 'scali n.d.' : r.stops === 0 ? 'diretto' : r.stops === 1 ? '1 scalo' : `${r.stops} scali`} · {r.passengers} pax
               </div>
             </li>

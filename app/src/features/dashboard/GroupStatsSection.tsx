@@ -39,7 +39,7 @@ function StatList({ title, rows, mult }: { title: string; rows: GroupStat[]; mul
 export function GroupStatsSection({ d, mult }: { d: Dashboard; mult: number }) {
   const [dir, setDir] = useState<Direction>('outbound')
   return (
-    <Section title="Compagnie e scali" subtitle="Su tutto lo storico · il numero indica quanti voli">
+    <Section title={d.byRoute.outbound.length > 1 || d.byRoute.return.length > 1 ? "Aeroporti, compagnie e scali" : "Compagnie e scali"} subtitle="Su tutto lo storico · il numero indica quanti voli">
       <Segmented
         label="Direzione"
         value={dir}
@@ -49,6 +49,7 @@ export function GroupStatsSection({ d, mult }: { d: Dashboard; mult: number }) {
           { value: 'return', label: 'Ritorno' },
         ]}
       />
+      {d.byRoute[dir].length > 1 && <StatList title="Aeroporti" rows={d.byRoute[dir]} mult={mult} />}
       <StatList title="Scali" rows={[...d.byStops[dir]].sort((a, b) => a.label.localeCompare(b.label))} mult={mult} />
       <StatList title="Compagnia" rows={d.byAirline[dir]} mult={mult} />
     </Section>

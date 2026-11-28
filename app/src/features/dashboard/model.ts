@@ -29,6 +29,8 @@ export interface LatestFlight {
   stops: number | null
   via: string[]
   link: string | null
+  origin_airport?: string | null
+  destination_airport?: string | null
 }
 
 type SeriesRow = [number, Direction, string, number, number | null, number | null, number | null, number | null, number | null]
@@ -42,6 +44,7 @@ export interface DashboardRaw {
   latest_searches: [Direction, string, SearchStatus][]
   by_airline: [Direction, string, number, number, number][]
   by_stops: [Direction, number, number, number, number][]
+  by_route?: [Direction, string, number, number, number][]
 }
 
 export interface Run {
@@ -83,6 +86,7 @@ export interface Dashboard {
   latestSearches: DashboardRaw['latest_searches']
   byAirline: Record<Direction, GroupStat[]>
   byStops: Record<Direction, GroupStat[]>
+  byRoute: Record<Direction, GroupStat[]>
 }
 
 const stopsLabel = (s: number) => (s === 0 ? 'Diretto' : s === 1 ? '1 scalo' : `${s} scali`)
@@ -183,6 +187,7 @@ export function buildDashboard(raw: DashboardRaw): Dashboard {
     latestSearches: raw.latest_searches,
     byAirline: group(raw.by_airline, String),
     byStops: group(raw.by_stops, (k) => stopsLabel(Number(k))),
+    byRoute: group(raw.by_route ?? [], (k) => String(k).replace('-', ' → ')),
   }
 }
 
@@ -254,3 +259,7 @@ export function windowDates(center: string, w: number): string[] {
   const base = dayUTC(center)
   return Array.from({ length: 2 * w + 1 }, (_, i) => new Date(base + (i - w) * dayMs).toISOString().slice(0, 10))
 }
+
+/** "CIA → STN" se gli aeroporti effettivi sono noti. */
+export const routeOf = (f: LatestFlight) =>
+  f.origin_airport && f.destination_airport ? `${f.origin_airport} → ${f.destination_airport}` : null

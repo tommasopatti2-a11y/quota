@@ -61,6 +61,8 @@ export interface FlightResult {
   flight_min: number | null
   stops: number | null
   via: string[]
+  origin_airport: string | null
+  destination_airport: string | null
 }
 
 export interface TripRun {
